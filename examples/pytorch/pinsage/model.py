@@ -71,6 +71,9 @@ def train(dataset, args):
         args.random_walk_restart_prob, args.num_random_walks, args.num_neighbors,
         args.num_layers)
     collator = sampler_module.PinSAGECollator(neighbor_sampler, g, item_ntype, textset)
+    
+    #这个错误其实是pytorch函数torch.utils.data.DataLoader在windows下的特有错误，
+    #该函数里面有个参数num_workers表示进程个数，在windows下改为0就可以了
     dataloader = DataLoader(
         batch_sampler,
         collate_fn=collator.collate_train,
