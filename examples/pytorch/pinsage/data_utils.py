@@ -29,9 +29,12 @@ def train_test_split_by_time(df, timestamp, user):
            df['test_mask'].to_numpy().nonzero()[0]
 
 def build_train_graph(g, train_indices, utype, itype, etype, etype_rev):
+    #https://docs.dgl.ai/generated/dgl.edge_subgraph.html#dgl.edge_subgraph
     train_g = g.edge_subgraph(
         {etype: train_indices, etype_rev: train_indices},
         preserve_nodes=True)
+    #preserve_nodes (bool, optional) – If true, do not relabel the incident nodes and remove the isolated nodes in the extracted subgraph. (Default: False)
+    
     # remove the induced node IDs - should be assigned by model instead
     del train_g.nodes[utype].data[dgl.NID]
     del train_g.nodes[itype].data[dgl.NID]
