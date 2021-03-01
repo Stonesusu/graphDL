@@ -37,6 +37,8 @@ if __name__ == '__main__':
     #load data
     users = pd.read_csv(os.path.join(directory,'user.csv'))
     users = users[['customer_id','trans_time','target']]
+    #按交易时间排序
+    users = users.sort_values(['trans_time'])
     
     wifi_list = pd.read_csv(os.path.join(directory,'wifi_list_id.csv'))
     wifi_list = wifi_list[['customer_id','create_time','wifi_list']]
@@ -68,13 +70,38 @@ if __name__ == '__main__':
 #     print(g.nodes('wifi'))
 #     print(g.edges(etype='relation'))
 #     print(g.edges(etype='relation-by'))
+
+    g.nodes['user'].data['label'] = torch.tensor(users['target'].values)
     
     g.nodes['user'].data['h_embedding'] = torch.nn.Embedding(users.shape[0],32).weight
     
-    g.edges['relation'].data['weight'] = torch.ones(g.num_edges('relation'))
-    g.edges['relation-by'].data['weight'] = torch.ones(g.num_edges('relation-by'))
-    print(g.edges['relation'].data)
+    g.edges['relation'].data['weights'] = torch.ones(g.num_edges('relation'))
+    g.edges['relation-by'].data['weights'] = torch.ones(g.num_edges('relation-by'))
     
+    # Train-validation-test split
+    user_train_indices,user_val_indices,user_test_indices,train_indices,val_indices,test_indices = train_test_split_by_time1(users,user_wifi_list, 'trans_time', 'customer_id')
+    
+#     train_g = build_train_graph(g, train_indices, 'user', 'wifi', 'relation', 'relation-by')
+#     print(train_g)
+    
+    dataset = {
+#         'train-graph': train_g,
+        'train-graph': g,
+        'train-indices':user_train_indices,
+        'val-indices':user_val_indices,
+        'test-indices':user_test_indices,
+        #'val-matrix': val_matrix,
+        #'test-matrix': test_matrix,
+        'item-texts': {},
+        'item-images': None,
+        'user-type': 'user',
+        'item-type': 'wifi',
+        'user-to-item-type': 'relation',
+        'item-to-user-type': 'relation-by',
+        'timestamp-edge-column': 'create_time'}
+
+    with open(output_path, 'wb') as f:
+        pickle.dump(dataset, f)
     
 
 print("Done!")

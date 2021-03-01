@@ -66,3 +66,29 @@ def build_val_test_matrix(g, val_indices, test_indices, utype, itype, etype):
 def linear_normalize(values):
     return (values - values.min(0, keepdims=True)) / \
         (values.max(0, keepdims=True) - values.min(0, keepdims=True))
+
+
+# This is the train-test split method most of the Antifraud system running on self-dataset
+# takes.  It essentially follows the intuition of "training on the past and predict the future".
+# One can also change the threshold to make validation and test set take larger proportions.
+def train_test_split_by_time1(user_df,df, timestamp, user):
+    test_size=0.1
+    dflen = len(user_df)
+    
+    user_train = user_df[:int(dflen*(1-2*test_size))][user].unique()
+    user_val = user_df[int(dflen*(1-2*test_size)):int(dflen*(1-test_size))][user].unique()
+    user_test = user_df[int(dflen*(1-test_size)):][user].unique()
+#     print(user_train,user_val,user_test)
+
+    user_df['train_mask'] = user_df[user].isin(user_train)
+    user_df['val_mask'] = user_df[user].isin(user_val)
+    user_df['test_mask'] = user_df[user].isin(user_test)
+    
+    df['train_mask'] = df[user].isin(user_train)
+    df['val_mask'] = df[user].isin(user_val)
+    df['test_mask'] = df[user].isin(user_test)
+#     print(user_df['train_mask'],user_df['val_mask'],user_df['test_mask'])
+
+    return user_df['train_mask'],user_df['val_mask'],user_df['test_mask'],  \
+         df['train_mask'].to_numpy().nonzero()[0], df['val_mask'].to_numpy().nonzero()[0], df['test_mask'].to_numpy().nonzero()[0]
+
