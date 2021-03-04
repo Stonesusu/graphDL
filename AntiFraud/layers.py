@@ -146,7 +146,7 @@ class WeightedSAGEConv(nn.Module):
             return z
 
 class SAGENet(nn.Module):
-    def __init__(self, hidden_dims, n_layers):
+    def __init__(self, hidden_dims, output_dims,n_layers):
         """
         g : DGLHeteroGraph
             The user-item interaction graph.
@@ -157,8 +157,10 @@ class SAGENet(nn.Module):
         super().__init__()
 
         self.convs = nn.ModuleList()
-        for _ in range(n_layers):
-            self.convs.append(WeightedSAGEConv(hidden_dims, hidden_dims, hidden_dims))
+#         for _ in range(n_layers):
+#             self.convs.append(WeightedSAGEConv(hidden_dims, hidden_dims, hidden_dims))
+        self.convs.append(WeightedSAGEConv(hidden_dims, hidden_dims, hidden_dims))
+        self.convs.append(WeightedSAGEConv(hidden_dims, hidden_dims, output_dims))
 
     def forward(self, blocks, h):
         for layer, block in zip(self.convs, blocks):

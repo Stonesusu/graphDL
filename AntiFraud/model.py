@@ -13,14 +13,15 @@ import sampler as sampler_module
 # import evaluation
 
 class PinSAGEModel(nn.Module):
-    def __init__(self, full_graph, ntype, hidden_dims, n_layers):
+    def __init__(self, full_graph, ntype, hidden_dims,output_dims,n_layers):
         super().__init__()
 
 #         self.proj = layers.LinearProjector(full_graph, ntype, hidden_dims)
-        self.sage = layers.SAGENet(hidden_dims, n_layers)
+        self.sage = layers.SAGENet(hidden_dims,output_dims,n_layers)
 #         self.scorer = layers.ItemToItemScorer(full_graph, ntype)
 
-    def forward(self, pos_graph, neg_graph, blocks):
+#     def forward(self, pos_graph, neg_graph, blocks):
+    def forward(self,blocks):
         h_item = self.get_repr(blocks)
 #         pos_score = self.scorer(pos_graph, h_item)
 #         neg_score = self.scorer(neg_graph, h_item)
@@ -96,26 +97,51 @@ def train(dataset, args):
         collate_fn=collator.collate_test,
         num_workers=args.num_workers)
     dataloader_it = iter(dataloader)
+    
+
+    print('*************************************')
+#     print(g.number_of_nodes(user_ntype))
+    blocks,labels = next(dataloader_it)
+    print(block.edata)
+#     print(blocks[0].dstdata[dgl.NID])
+#     print(blocks[0].srcdata[dgl.NID])
+#     print(blocks[-1].dstdata[dgl.NID])
+#     print(blocks[-1].srcdata[dgl.NID])
+#     print(block.ntypes)
+#     print(block.ntypes[0])
+#     print('DST/' + block.ntypes[0])
+#     print(block)
+#     print(block.number_of_nodes('DST/' + block.ntypes[0]))
+#     print(block.number_of_nodes('SRC/' + block.ntypes[0]))
+#     print(block.number_of_nodes('XXX/' + block.ntypes[0]))
+    
+#     def forward(self, blocks, h):
+#         for layer, block in zip(self.convs, blocks):
+#             h_dst = h[:block.number_of_nodes('DST/' + block.ntypes[0])]
+#             h = layer(block, (h, h_dst), block.edata['weights'])
+#         return h
 
     # Model
-    model = PinSAGEModel(g, user_ntype, args.hidden_dims, args.num_layers).to(device)
+    model = PinSAGEModel(g, user_ntype, args.hidden_dims,args.output_dims ,args.num_layers).to(device)
     # Optimizer
     opt = torch.optim.Adam(model.parameters(), lr=args.lr)
 
-    # For each batch of head-tail-negative triplets...
+    # For each batch of blocks-labels
     for epoch_id in range(1):
         model.train()
         for batch_id in tqdm.trange(args.batches_per_epoch):
 #             pos_graph, neg_graph, blocks = next(dataloader_it)
             blocks,labels = next(dataloader_it)
-            print(blocks)
-            print(labels)
-#             # Copy to GPU
-#             for i in range(len(blocks)):
-#                 blocks[i] = blocks[i].to(device)
-#             pos_graph = pos_graph.to(device)
-#             neg_graph = neg_graph.to(device)
+#             print(labels)
+            # Copy to GPU
+            for i in range(len(blocks)):
+                blocks[i] = blocks[i].to(device)
+            labels.to(device)
+# #             pos_graph = pos_graph.to(device)
+# #             neg_graph = neg_graph.to(device)
 
+            
+#             logits = model(g,node_features)
 #             loss = model(pos_graph, neg_graph, blocks).mean()
 #             opt.zero_grad()
 #             loss.backward()
@@ -145,6 +171,7 @@ if __name__ == '__main__':
     parser.add_argument('--num-neighbors', type=int, default=3)
     parser.add_argument('--num-layers', type=int, default=2)
     parser.add_argument('--hidden-dims', type=int, default=16)
+    parser.add_argument('--output-dims', type=int, default=2)
     parser.add_argument('--batch-size', type=int, default=32)
     parser.add_argument('--device', type=str, default='cpu')        # can also be "cuda:0"
     parser.add_argument('--num-epochs', type=int, default=1)
