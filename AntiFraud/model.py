@@ -102,7 +102,7 @@ def train(dataset, args):
     print('*************************************')
 #     print(g.number_of_nodes(user_ntype))
     blocks,labels = next(dataloader_it)
-    print(block.edata)
+    print(blocks[0].edata)
 #     print(blocks[0].dstdata[dgl.NID])
 #     print(blocks[0].srcdata[dgl.NID])
 #     print(blocks[-1].dstdata[dgl.NID])

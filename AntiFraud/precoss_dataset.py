@@ -75,8 +75,8 @@ if __name__ == '__main__':
     
     g.nodes['user'].data['h_embedding'] = torch.nn.Embedding(users.shape[0],32).weight
     
-    g.edges['relation'].data['weights'] = torch.ones(g.num_edges('relation'))
-    g.edges['relation-by'].data['weights'] = torch.ones(g.num_edges('relation-by'))
+#     g.edges['relation'].data['weights'] = torch.ones(g.num_edges('relation'))
+#     g.edges['relation-by'].data['weights'] = torch.ones(g.num_edges('relation-by'))
     
     # Train-validation-test split
     user_train_indices,user_val_indices,user_test_indices,train_indices,val_indices,test_indices = train_test_split_by_time1(users,user_wifi_list, 'trans_time', 'customer_id')
