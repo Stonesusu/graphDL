@@ -68,95 +68,96 @@ def main(args):
     test_idx = th.nonzero(test_mask, as_tuple=False).squeeze()
     labels = g.nodes[category].data.pop('labels')
     
+    print(g)
     
-    # split dataset into train, validate, test
-    if args.validation:
-        val_idx = train_idx[:len(train_idx) // 5]
-        train_idx = train_idx[len(train_idx) // 5:]
-    else:
-        val_idx = train_idx
+#     # split dataset into train, validate, test
+#     if args.validation:
+#         val_idx = train_idx[:len(train_idx) // 5]
+#         train_idx = train_idx[len(train_idx) // 5:]
+#     else:
+#         val_idx = train_idx
 
-    # create embeddings
-    embed_layer = RelGraphEmbed(g, args.n_hidden)
+#     # create embeddings
+#     embed_layer = RelGraphEmbed(g, args.n_hidden)
 
-    if not args.data_cpu:
-        labels = labels.to(device)
-        embed_layer = embed_layer.to(device)
+#     if not args.data_cpu:
+#         labels = labels.to(device)
+#         embed_layer = embed_layer.to(device)
 
-    node_embed = embed_layer()
-    # create model
-    model = EntityClassify(g,
-                           args.n_hidden,
-                           num_classes,
-                           num_bases=args.n_bases,
-                           num_hidden_layers=args.n_layers - 2,
-                           dropout=args.dropout,
-                           use_self_loop=args.use_self_loop)
+#     node_embed = embed_layer()
+#     # create model
+#     model = EntityClassify(g,
+#                            args.n_hidden,
+#                            num_classes,
+#                            num_bases=args.n_bases,
+#                            num_hidden_layers=args.n_layers - 2,
+#                            dropout=args.dropout,
+#                            use_self_loop=args.use_self_loop)
 
-    if use_cuda:
-        model.cuda()
+#     if use_cuda:
+#         model.cuda()
 
-    # train sampler
-    sampler = dgl.dataloading.MultiLayerNeighborSampler([args.fanout] * args.n_layers)
-    loader = dgl.dataloading.NodeDataLoader(
-        g, {category: train_idx}, sampler,
-        batch_size=args.batch_size, shuffle=True, num_workers=0)
+#     # train sampler
+#     sampler = dgl.dataloading.MultiLayerNeighborSampler([args.fanout] * args.n_layers)
+#     loader = dgl.dataloading.NodeDataLoader(
+#         g, {category: train_idx}, sampler,
+#         batch_size=args.batch_size, shuffle=True, num_workers=0)
 
-    # validation sampler
-    # we do not use full neighbor to save computation resources
-    val_sampler = dgl.dataloading.MultiLayerNeighborSampler([args.fanout] * args.n_layers)
-    val_loader = dgl.dataloading.NodeDataLoader(
-        g, {category: val_idx}, val_sampler,
-        batch_size=args.batch_size, shuffle=True, num_workers=0)
+#     # validation sampler
+#     # we do not use full neighbor to save computation resources
+#     val_sampler = dgl.dataloading.MultiLayerNeighborSampler([args.fanout] * args.n_layers)
+#     val_loader = dgl.dataloading.NodeDataLoader(
+#         g, {category: val_idx}, val_sampler,
+#         batch_size=args.batch_size, shuffle=True, num_workers=0)
 
-    # optimizer
-    all_params = itertools.chain(model.parameters(), embed_layer.parameters())
-    optimizer = th.optim.Adam(all_params, lr=args.lr, weight_decay=args.l2norm)
+#     # optimizer
+#     all_params = itertools.chain(model.parameters(), embed_layer.parameters())
+#     optimizer = th.optim.Adam(all_params, lr=args.lr, weight_decay=args.l2norm)
 
-    # training loop
-    print("start training...")
-    dur = []
-    for epoch in range(args.n_epochs):
-        model.train()
-        optimizer.zero_grad()
-        if epoch > 3:
-            t0 = time.time()
+#     # training loop
+#     print("start training...")
+#     dur = []
+#     for epoch in range(args.n_epochs):
+#         model.train()
+#         optimizer.zero_grad()
+#         if epoch > 3:
+#             t0 = time.time()
 
-        for i, (input_nodes, seeds, blocks) in enumerate(loader):
-            blocks = [blk.to(device) for blk in blocks]
-            seeds = seeds[category]     # we only predict the nodes with type "category"
-            batch_tic = time.time()
-            emb = extract_embed(node_embed, input_nodes)
-            lbl = labels[seeds]
-            if use_cuda:
-                emb = {k : e.cuda() for k, e in emb.items()}
-                lbl = lbl.cuda()
-            logits = model(emb, blocks)[category]
-            loss = F.cross_entropy(logits, lbl)
-            loss.backward()
-            optimizer.step()
+#         for i, (input_nodes, seeds, blocks) in enumerate(loader):
+#             blocks = [blk.to(device) for blk in blocks]
+#             seeds = seeds[category]     # we only predict the nodes with type "category"
+#             batch_tic = time.time()
+#             emb = extract_embed(node_embed, input_nodes)
+#             lbl = labels[seeds]
+#             if use_cuda:
+#                 emb = {k : e.cuda() for k, e in emb.items()}
+#                 lbl = lbl.cuda()
+#             logits = model(emb, blocks)[category]
+#             loss = F.cross_entropy(logits, lbl)
+#             loss.backward()
+#             optimizer.step()
 
-            train_acc = th.sum(logits.argmax(dim=1) == lbl).item() / len(seeds)
-            print("Epoch {:05d} | Batch {:03d} | Train Acc: {:.4f} | Train Loss: {:.4f} | Time: {:.4f}".
-                  format(epoch, i, train_acc, loss.item(), time.time() - batch_tic))
+#             train_acc = th.sum(logits.argmax(dim=1) == lbl).item() / len(seeds)
+#             print("Epoch {:05d} | Batch {:03d} | Train Acc: {:.4f} | Train Loss: {:.4f} | Time: {:.4f}".
+#                   format(epoch, i, train_acc, loss.item(), time.time() - batch_tic))
 
-        if epoch > 3:
-            dur.append(time.time() - t0)
+#         if epoch > 3:
+#             dur.append(time.time() - t0)
 
-        val_loss, val_acc = evaluate(model, val_loader, node_embed, labels, category, device)
-        print("Epoch {:05d} | Valid Acc: {:.4f} | Valid loss: {:.4f} | Time: {:.4f}".
-              format(epoch, val_acc, val_loss, np.average(dur)))
-    print()
-    if args.model_path is not None:
-        th.save(model.state_dict(), args.model_path)
+#         val_loss, val_acc = evaluate(model, val_loader, node_embed, labels, category, device)
+#         print("Epoch {:05d} | Valid Acc: {:.4f} | Valid loss: {:.4f} | Time: {:.4f}".
+#               format(epoch, val_acc, val_loss, np.average(dur)))
+#     print()
+#     if args.model_path is not None:
+#         th.save(model.state_dict(), args.model_path)
 
-    output = model.inference(
-        g, args.batch_size, 'cuda' if use_cuda else 'cpu', 0, node_embed)
-    test_pred = output[category][test_idx]
-    test_labels = labels[test_idx]
-    test_acc = (test_pred.argmax(1) == test_labels).float().mean()
-    print("Test Acc: {:.4f}".format(test_acc))
-    print()
+#     output = model.inference(
+#         g, args.batch_size, 'cuda' if use_cuda else 'cpu', 0, node_embed)
+#     test_pred = output[category][test_idx]
+#     test_labels = labels[test_idx]
+#     test_acc = (test_pred.argmax(1) == test_labels).float().mean()
+#     print("Test Acc: {:.4f}".format(test_acc))
+#     print()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='RGCN')
