@@ -67,7 +67,8 @@ def main(args):
     train_idx = th.nonzero(train_mask, as_tuple=False).squeeze()
     test_idx = th.nonzero(test_mask, as_tuple=False).squeeze()
     labels = g.nodes[category].data.pop('labels')
-
+    
+    
     # split dataset into train, validate, test
     if args.validation:
         val_idx = train_idx[:len(train_idx) // 5]
